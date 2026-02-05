@@ -1,0 +1,10 @@
+--- # Poggit-CI Manifest. Open the CI at https://poggit.pmmp.io/ci/PocketCloudSystem/pmmp-discord-webhook-lib
+build-by-default: true
+branches:
+- main
+projects:
+  pmmp-discord-webhook-lib:
+    path: ""
+    model: virion
+    type: library
+...
