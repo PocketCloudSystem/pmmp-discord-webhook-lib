@@ -59,23 +59,12 @@ final class Message implements Writeable {
      */
     public function send(): Promise {
         if ($this->webhook === null) throw new LogicException("Please create a message via Webhook->createMessage()");
-        $promise = new PromiseResolver();
-        Server::getInstance()->getAsyncPool()->submitTask(new DiscordSendDataTask(
-            $this->webhook->getUrl(),
-            $this->wait,
-            $this->threadId,
-            $this->withComponents,
-            serialize($this->write()),
-            static function (bool|string $response, int $statusCode) use ($promise): void {
-                $promise->resolve([$response, $statusCode]);
-            }
-        ));
-
-        return $promise->getPromise();
+        return $this->sendWithDiffWebhook($this->webhook);
     }
 
     /**
      * IMPORTANT! In the PMMP variant, the Promise will always be resolved, even if discord responded with an error.
+     * @param Webhook $webhook
      * @return Promise
      * @throws JsonException
      */
@@ -87,8 +76,8 @@ final class Message implements Writeable {
             $this->threadId,
             $this->withComponents,
             serialize($this->write()),
-            static function (bool|string $response, int $statusCode) use ($promise): void {
-                $promise->resolve([$response, $statusCode]);
+            static function (bool|string $response, int $statusCode, string $curlError, string $curlErrno) use ($promise): void {
+                $promise->resolve([$response, $statusCode, $curlError, $curlErrno]);
             }
         ));
 
