@@ -1,0 +1,7 @@
+name: discord-webhook-lib
+authors:
+  - r3pt1s
+version: 1.0.0
+antigen: r3pt1s\discord\webhook
+api:
+  - 5.0.0
