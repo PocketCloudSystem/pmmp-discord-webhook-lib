@@ -9,6 +9,7 @@ use LogicException;
 use pocketmine\promise\Promise;
 use pocketmine\promise\PromiseResolver;
 use pocketmine\Server;
+use r3pt1s\discord\webhook\message\component\misc\ActionRowChildComponent;
 use r3pt1s\discord\webhook\util\Writeable;
 use r3pt1s\discord\webhook\message\attachment\Attachment;
 use r3pt1s\discord\webhook\message\component\MessageComponent;
@@ -17,6 +18,7 @@ use r3pt1s\discord\webhook\message\mention\AllowedMention;
 use r3pt1s\discord\webhook\poll\Poll;
 use r3pt1s\discord\webhook\task\DiscordSendDataTask;
 use r3pt1s\discord\webhook\Webhook;
+use RuntimeException;
 
 final class Message implements Writeable {
 
@@ -46,7 +48,7 @@ final class Message implements Writeable {
      * @param bool $withComponents whether to respect the components field of the request. When enabled, allows application-owned webhooks to use all components and non-owned webhooks to use non-interactive components. (defaults to false)
      */
     public function __construct(
-        private readonly bool $wait,
+        private readonly bool $wait = false,
         private readonly ?string $threadId = null,
         private readonly bool $withComponents = false,
         private readonly ?Webhook $webhook = null
@@ -133,6 +135,10 @@ final class Message implements Writeable {
     }
 
     public function addComponent(MessageComponent $component): self {
+        if ($component instanceof ActionRowChildComponent) {
+            throw new RuntimeException($component->getType()->name . " components need to be wrapped around an ActionRow");
+        }
+
         $this->components[] = $component;
         return $this;
     }
