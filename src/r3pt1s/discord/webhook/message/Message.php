@@ -2,6 +2,7 @@
 
 namespace r3pt1s\discord\webhook\message;
 
+use Closure;
 use CURLFile;
 use InvalidArgumentException;
 use JsonException;
@@ -10,6 +11,7 @@ use pocketmine\promise\Promise;
 use pocketmine\promise\PromiseResolver;
 use pocketmine\Server;
 use r3pt1s\discord\webhook\message\component\misc\ActionRowChildComponent;
+use r3pt1s\discord\webhook\util\WebhookHelper;
 use r3pt1s\discord\webhook\util\Writeable;
 use r3pt1s\discord\webhook\message\attachment\Attachment;
 use r3pt1s\discord\webhook\message\component\MessageComponent;
@@ -57,33 +59,29 @@ final class Message implements Writeable {
     /**
      * IMPORTANT! In the PMMP variant, the Promise will always be resolved, even if discord responded with an error.
      * @return Promise
-     * @throws JsonException
      */
     public function send(): Promise {
         if ($this->webhook === null) throw new LogicException("Please create a message via Webhook->createMessage()");
-        return $this->sendWithDiffWebhook($this->webhook);
+        return $this->webhook->send($this);
     }
 
     /**
      * IMPORTANT! In the PMMP variant, the Promise will always be resolved, even if discord responded with an error.
      * @param Webhook $webhook
      * @return Promise
-     * @throws JsonException
      */
     public function sendWithDiffWebhook(Webhook $webhook): Promise {
-        $promise = new PromiseResolver();
-        Server::getInstance()->getAsyncPool()->submitTask(new DiscordSendDataTask(
-            $webhook->getUrl(),
-            $this->wait,
-            $this->threadId,
-            $this->withComponents,
-            serialize($this->write()),
-            static function (bool|string $response, int $statusCode, string $curlError, string $curlErrno) use ($promise): void {
-                $promise->resolve([$response, $statusCode, $curlError, $curlErrno]);
-            }
-        ));
+        return $webhook->send($this);
+    }
 
-        return $promise->getPromise();
+    /**
+     * Just a function to modify the message without interrupting the chain
+     * @param Closure $tapFn
+     * @return self
+     */
+    public function tap(Closure $tapFn): self {
+        ($tapFn)($this);
+        return $this;
     }
 
     /**
@@ -103,8 +101,8 @@ final class Message implements Writeable {
     }
 
     public function setAvatarUrl(string $avatarUrl): self {
-        if (filter_var($avatarUrl, FILTER_VALIDATE_URL)) $this->avatarUrl = $avatarUrl;
-        else throw new InvalidArgumentException("AvatarUrl must be a valid URL");
+        WebhookHelper::validateUrl($avatarUrl, "AvatarUrl");
+        $this->avatarUrl = $avatarUrl;
         return $this;
     }
 
@@ -121,6 +119,21 @@ final class Message implements Writeable {
     public function addEmbed(Embed $embed): self {
         if (count($this->embeds) == self::MAX_EMBEDS) throw new LogicException("Failed to add embed, max amount of embeds (" . self::MAX_EMBEDS . ") reached");
         $this->embeds[] = $embed;
+        return $this;
+    }
+
+    public function addEmbedIf(Closure $conditionFn, Embed $embed): self {
+        if ($conditionFn()) $this->addEmbed($embed);
+        return $this;
+    }
+
+    public function addEmbeds(Embed ...$embeds): self {
+        foreach ($embeds as $embed) $this->addEmbed($embed);
+        return $this;
+    }
+
+    public function addEmbedsIf(Closure $conditionFn, Embed ...$embeds): self {
+        if ($conditionFn()) $this->addEmbeds(...$embeds);
         return $this;
     }
 
@@ -159,6 +172,11 @@ final class Message implements Writeable {
         return $this;
     }
 
+    public function removeFlags(MessageFlag ...$flags): self {
+        foreach ($flags as $flag) $this->flags &= ~$flag->value;
+        return $this;
+    }
+
     /**
      * If set, a new thread with the applied name will be created
      * @param string|null $threadName
@@ -176,7 +194,7 @@ final class Message implements Writeable {
      * @return $this
      */
     public function setThreadAppliedTags(array $threadAppliedTagIds): self {
-       $this->threadAppliedTags = $threadAppliedTagIds;
+        $this->threadAppliedTags = $threadAppliedTagIds;
         return $this;
     }
 
