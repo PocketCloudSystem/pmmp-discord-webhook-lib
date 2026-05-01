@@ -285,13 +285,4 @@ final class Message implements Writeable {
 
         return $data;
     }
-
-    public static function convertFilesData(array $data): array {
-        foreach (($data["files"] ?? []) as $i => $fileData) {
-            $data["files[$i]"] = new CURLFile(...$fileData);
-        }
-
-        if (isset($data["files"])) unset($data["files"]);
-        return $data;
-    }
 }

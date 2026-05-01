@@ -5,7 +5,6 @@ namespace r3pt1s\discord\webhook\task;
 use Closure;
 use CURLFile;
 use pocketmine\scheduler\AsyncTask;
-use r3pt1s\discord\webhook\message\Message;
 
 final class DiscordSendDataTask extends AsyncTask {
 
@@ -30,7 +29,7 @@ final class DiscordSendDataTask extends AsyncTask {
         $ch = curl_init($url);
 
         $requestData = unserialize($this->requestData);
-        $actualData = Message::convertFilesData(iterator_to_array($requestData));
+        $actualData = $this->convertFilesData(iterator_to_array($requestData));
 
         $hasFiles = false;
         foreach ($actualData as $value) {
@@ -65,5 +64,14 @@ final class DiscordSendDataTask extends AsyncTask {
     public function onCompletion(): void {
         $result = $this->getResult();
         if ($this->completionCallback !== null) ($this->completionCallback)(...$result);
+    }
+
+    public function convertFilesData(array $data): array {
+        foreach (($data["files"] ?? []) as $i => $fileData) {
+            $data["files[$i]"] = new CURLFile(...$fileData);
+        }
+
+        if (isset($data["files"])) unset($data["files"]);
+        return $data;
     }
 }
